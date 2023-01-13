@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	customsearch "google.golang.org/api/customsearch/v1"
 	"google.golang.org/api/option"
@@ -34,7 +35,10 @@ func hoge(w http.ResponseWriter, r *http.Request) {
 		search := cseService.Cse.List().Q(word)
 		search.Cx(search_id)
 		search.Start(1)
+		start := time.Now()
 		call, err := search.Do()
+		response_time := time.Since(start).Seconds()
+		fmt.Fprintf(os.Stdout, "Golang API Response time: %f (sec)\n", response_time)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -45,7 +49,10 @@ func hoge(w http.ResponseWriter, r *http.Request) {
 	result_html += "</ul>"
 
 	// using custom search engine
+	start := time.Now()
 	res, err := http.Get("https://customsearch.googleapis.com/customsearch/v1?cx=" + search_id + "&key=" + token + "&q=" + word)
+	response_time := time.Since(start).Seconds()
+	fmt.Fprintf(os.Stdout, "REST API Response time: %f (sec)\n", response_time)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,9 +60,10 @@ func hoge(w http.ResponseWriter, r *http.Request) {
 	search_body, _ := io.ReadAll(res.Body)
 
 	// using customsearch through googleAPI to get result with json
-	res_json, err := http.Get("https://www.googleapis.com/customsearch/v1?key=" + token + "&q=" + word + "&cx=" + search_id)
-	res_json_body, _ := io.ReadAll(res_json.Body)
-	defer res_json.Body.Close()
+	// res_json, err := http.Get("https://www.googleapis.com/customsearch/v1?key=" + token + "&q=" + word + "&cx=" + search_id)
+	// res_json_body, _ := io.ReadAll(res_json.Body)
+	res_json_body := ""
+	// defer res_json.Body.Close()
 	template := `
 	<html>
 	<head><title>hoge</title></head>
