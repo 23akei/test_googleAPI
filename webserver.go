@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -29,12 +28,15 @@ func hoge(w http.ResponseWriter, r *http.Request) {
 	word := strings.Join(r.Form["word"], "")
 	fmt.Println("search_term: ", word)
 	result_html := "<ul>"
+	content := ""
 	if word != "" {
 		ctx := context.Background()
 		cseService, _ := customsearch.NewService(ctx, option.WithAPIKey(token))
-		search := cseService.Cse.List().Q(word)
+		search := cseService.Cse.List()
+		search.Q(word)
 		search.Cx(search_id)
-		search.Start(1)
+		search.Fields("items(title, link)", "searchInformation(searchTime)")
+		// search.Start(0)
 		start := time.Now()
 		call, err := search.Do()
 		response_time := time.Since(start).Seconds()
@@ -42,27 +44,29 @@ func hoge(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		content = string(call.Context)
+		fmt.Fprintf(os.Stdout, "Golang API Response time(SearchInformation.SearchTime): %f (sec)\n", call.SearchInformation.SearchTime)
 		for _, r := range call.Items {
-			result_html += "<li><a href=" + r.Link + ">" + r.HtmlTitle + "</a></li>"
+			result_html += "<li><a href=" + r.Link + ">" + r.Title + "</a></li>"
 		}
 	}
 	result_html += "</ul>"
 
 	// using custom search engine
-	start := time.Now()
-	res, err := http.Get("https://customsearch.googleapis.com/customsearch/v1?cx=" + search_id + "&key=" + token + "&q=" + word)
-	response_time := time.Since(start).Seconds()
-	fmt.Fprintf(os.Stdout, "REST API Response time: %f (sec)\n", response_time)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer res.Body.Close()
-	search_body, _ := io.ReadAll(res.Body)
+	// start := time.Now()
+	// res, err := http.Get("https://customsearch.googleapis.com/customsearch/v1?cx=" + search_id + "&key=" + token + "&q=" + word)
+	// response_time := time.Since(start).Seconds()
+	// fmt.Fprintf(os.Stdout, "REST API Response time: %f (sec)\n", response_time)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer res.Body.Close()
+	// search_body, _ := io.ReadAll(res.Body)
 
 	// using customsearch through googleAPI to get result with json
 	// res_json, err := http.Get("https://www.googleapis.com/customsearch/v1?key=" + token + "&q=" + word + "&cx=" + search_id)
 	// res_json_body, _ := io.ReadAll(res_json.Body)
-	res_json_body := ""
+	// res_json_body := ""
 	// defer res_json.Body.Close()
 	template := `
 	<html>
@@ -72,8 +76,7 @@ func hoge(w http.ResponseWriter, r *http.Request) {
 	<h3>1. Programmable Search Element Control API</h3>
 	Implemented by JavaScript in this html.
 	You can customize this code on the control pannel of the programmable search engine.
-		<script async src="https://cse.google.com/cse.js?cx=%s">
-		</script>
+		<script async src="https://cse.google.com/cse.js?cx=%s"></script>
 		<div class="gcse-search"></div>
 	</div>
 	<div>
@@ -84,24 +87,18 @@ func hoge(w http.ResponseWriter, r *http.Request) {
 	<input type="submit" />
 	</form>
 	</div>
-	<h4>2-1. result from API</h4>
-	<a href="https://www.googleapis.com/customsearch/v1">endpoint</a>
-	<div>
-	%s
-	</div>
-	<h4>2-2. result from JSON API</h4>
-	<a href="https://customsearch.googleapis.com/customsearch/v1">endpoint</a>
-	<div>
-	%s
-	</div>
 	<h4>3. result from golang API (list of link)</h4>
+	<div>
+	%s
+	</div>
+	<a>result of json</a>
 	<div>
 	%s
 	</div>
 	</div>
 	</body>
 	`
-	fmt.Fprintf(w, template, search_id, search_body, res_json_body, result_html)
+	fmt.Fprintf(w, template, search_id, result_html, content)
 }
 
 func main() {

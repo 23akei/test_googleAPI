@@ -52,3 +52,11 @@ https://developers.google.com/custom-search/v1/overview
 ### Custom Search JSON APIの利用
 このAPIはOpenSearch1.1↓を満たすらしい．
 https://github.com/dewitt/opensearch/blob/master/opensearch-1-1-draft-6.md
+
+
+### 高速化
+GolangのAPIや直接エンドポイントを叩くAPIはレスポンスが遅い．（8秒くらいかかる）
+GolangのAPIで以下の高速化を試した
+* レスポンスのgzip圧縮→デフォルトで有効
+* `Start` オプションの指定をやめる→効果なし
+* レスポンスの要素の限定→効果なし
